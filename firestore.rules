@@ -1,0 +1,97 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && 
+        request.auth.token.email != null &&
+        exists(/databases/$(database)/documents/admin_users/$(request.auth.token.email.lower())) &&
+        get(/databases/$(database)/documents/admin_users/$(request.auth.token.email.lower())).data.role == 'super_admin';
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        request.auth.token.email != null &&
+        exists(/databases/$(database)/documents/admin_users/$(request.auth.token.email.lower())) &&
+        get(/databases/$(database)/documents/admin_users/$(request.auth.token.email.lower())).data.role in ['super_admin', 'admin'];
+    }
+
+    // research_notebooks collection
+    match /research_notebooks/{notebookId} {
+      allow read, update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // users collection
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId);
+    }
+
+    // journal collection
+    match /journal/{entryId} {
+      allow read, update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // concepts collection
+    match /concepts/{conceptId} {
+      allow read, update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // insights collection
+    match /insights/{insightId} {
+      allow read, update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // exports collection
+    match /exports/{exportId} {
+      allow read, update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // portfolios collection
+    match /portfolios/{portfolioId} {
+      allow read: if resource.data.isPublic == true || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // analytics_events collection
+    match /analytics_events/{eventId} {
+      // Admins can read, create, update, delete any events
+      allow read, write: if isAdmin();
+      // Non-admins can only create their own events
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // admin_users collection
+    match /admin_users/{email} {
+      // Any authenticated user can read their own admin record to verify their role
+      allow read: if isAuthenticated() && request.auth.token.email != null && request.auth.token.email.lower() == email.lower();
+      
+      // Allow bootstrapping for the pre-defined admin email, and management by super admins
+      allow create: if (isAuthenticated() && request.auth.token.email != null && request.auth.token.email.lower() == "pedroarf@gmail.com" && email.lower() == "pedroarf@gmail.com") || isSuperAdmin();
+      allow read, update, delete: if isSuperAdmin();
+    }
+
+    // feedback collection
+    match /feedback/{feedbackId} {
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}

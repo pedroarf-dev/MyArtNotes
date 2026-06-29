@@ -1,0 +1,8 @@
+{
+  "name": "MyArtNotes",
+  "description": "Artistic Research Notebook / Caderno de Pesquisa Artística. A creative research tool for artists to journal, explore concepts in the Lab, map concept relationships, trace their creative evolution on a Timeline, and receive reflective AI Insights on their process.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
