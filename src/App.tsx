@@ -16,8 +16,9 @@ import ExportModule from "./components/ExportModule";
 import PortfolioBuilder from "./components/PortfolioBuilder";
 import PublicPortfolioViewer from "./components/PublicPortfolioViewer";
 import MyanCommunicationCenter from "./components/MyanCommunicationCenter";
+import GuestLocker from "./components/GuestLocker";
 import { JournalEntry, Concept, Insight, ActiveTab } from "./types";
-import { onAuthStateChanged, User, signOut } from "firebase/auth";
+import { onAuthStateChanged, User, signOut, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "./lib/firebase";
 import {
   getJournalEntries,
@@ -73,7 +74,45 @@ function AppContent() {
   // System Loading / Errors
   const [systemError, setSystemError] = useState("");
 
+  // Guest Sign-In states
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [signInError, setSignInError] = useState("");
+
   const [publicPortfolioId, setPublicPortfolioId] = useState<string | null>(null);
+
+  const handleGoogleSignIn = async () => {
+    console.log("[AUTH] Initiating Google Sign-In popup flow...");
+    setSignInError("");
+    setIsSigningIn(true);
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({
+      prompt: "select_account"
+    });
+    try {
+      const result = await signInWithPopup(auth, provider);
+      console.log(`[AUTH] Google Sign-In successful. User: ${result.user.uid}`);
+      setUser(result.user);
+    } catch (err: any) {
+      console.error("[AUTH] Google Sign-In error:", err);
+      let errMsg = err.message || "An unexpected error occurred during Google Sign-In.";
+      if (err.code === "auth/popup-blocked") {
+        errMsg = locale === "en"
+          ? "The Google sign-in window was blocked by your browser. Please check your browser's address bar settings to allow popups, or try opening this application in a new tab."
+          : "A janela de login do Google foi bloqueada pelo seu navegador. Por favor, verifique suas configurações de pop-up ou tente abrir este aplicativo em uma nova aba.";
+      } else if (err.code === "auth/popup-closed-by-user") {
+        errMsg = locale === "en"
+          ? "The sign-in window was closed before completing authentication. Please try again."
+          : "A janela de login foi fechada antes da conclusão do processo de autenticação. Por favor, tente novamente.";
+      } else if (err.code === "auth/unauthorized-domain") {
+        errMsg = locale === "en"
+          ? "This domain is not authorized for Firebase Authentication. If you are on Vercel, please add your domain to the Authorized Domains list in the Firebase Console."
+          : "Este domínio não está autorizado para Autenticação do Firebase. Se você está no Vercel, adicione o seu domínio à lista de Domínios Autorizados no Console do Firebase.";
+      }
+      setSignInError(errMsg);
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -191,11 +230,7 @@ function AppContent() {
     );
   }
 
-  if (!user) {
-    return <AuthAndOnboarding onAuthSuccess={(u) => setUser(u)} />;
-  }
-
-  if (checkingPrivacyConsent) {
+  if (user && checkingPrivacyConsent) {
     return (
       <div className="min-h-screen bg-[#FAF8F3] flex flex-col items-center justify-center gap-4 font-sans">
         <Loader2 className="w-8 h-8 text-stone-400 animate-spin" />
@@ -206,7 +241,7 @@ function AppContent() {
     );
   }
 
-  if (privacyConsentRequired) {
+  if (user && privacyConsentRequired) {
     return (
       <ConsentFlow
         userId={user.uid}
@@ -218,7 +253,7 @@ function AppContent() {
   }
 
   return (
-    <ResearchProvider userId={user.uid} preferredLanguage={locale}>
+    <ResearchProvider userId={user ? user.uid : null} preferredLanguage={locale}>
       <WorkspaceContainer 
         user={user}
         locale={locale}
@@ -233,6 +268,9 @@ function AppContent() {
         setShowOnboarding={setShowOnboarding}
         autoOpenNewEntry={autoOpenNewEntry}
         setAutoOpenNewEntry={setAutoOpenNewEntry}
+        onSignIn={handleGoogleSignIn}
+        isSigningIn={isSigningIn}
+        signInError={signInError}
       />
     </ResearchProvider>
   );
@@ -240,7 +278,7 @@ function AppContent() {
 
 // Sub-component wrapper that securely consumes ResearchContext inside ResearchProvider
 interface WorkspaceContainerProps {
-  user: User;
+  user: User | null;
   locale: "pt" | "en";
   t: any;
   activeTab: ActiveTab;
@@ -253,6 +291,9 @@ interface WorkspaceContainerProps {
   setShowOnboarding: (show: boolean) => void;
   autoOpenNewEntry: boolean;
   setAutoOpenNewEntry: (open: boolean) => void;
+  onSignIn?: () => void;
+  isSigningIn?: boolean;
+  signInError?: string;
 }
 
 function WorkspaceContainer({
@@ -268,7 +309,10 @@ function WorkspaceContainer({
   showOnboarding,
   setShowOnboarding,
   autoOpenNewEntry,
-  setAutoOpenNewEntry
+  setAutoOpenNewEntry,
+  onSignIn,
+  isSigningIn,
+  signInError
 }: WorkspaceContainerProps) {
   const { 
     currentNotebook, 
@@ -812,6 +856,8 @@ function WorkspaceContainer({
         user={user}
         onSignOut={handleSignOut}
         adminRole={adminRole}
+        onSignIn={onSignIn}
+        isSigningIn={isSigningIn}
       />
 
       {showOnboarding ? (
@@ -856,122 +902,139 @@ function WorkspaceContainer({
                     }
                   }}
                   onStartFirstEntry={() => {
-                    setActiveTab("journal");
-                    setAutoOpenNewEntry(true);
+                    if (user) {
+                      setActiveTab("journal");
+                      setAutoOpenNewEntry(true);
+                    } else if (onSignIn) {
+                      onSignIn();
+                    }
                   }}
-                  onCreateDemoNotebook={handleCreateDemoNotebook}
-                  onDeleteDemoNotebook={handleDeleteDemoNotebook}
+                  onCreateDemoNotebook={user ? handleCreateDemoNotebook : undefined}
+                  onDeleteDemoNotebook={user ? handleDeleteDemoNotebook : undefined}
+                  isGuest={!user}
+                  onSignIn={onSignIn}
                 />
               )}
 
-              {activeTab !== "home" && activeTab !== "profile" && activeTab !== "admin" && activeTab !== "settings" && activeTab !== "getting-started" && activeTab !== "portfolio" && !currentNotebook && (
-                <div className="h-[60vh] flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto space-y-4">
-                  <BookOpen className="w-12 h-12 text-stone-300 animate-pulse" />
-                  <h3 className="text-xs font-mono font-bold text-stone-900 uppercase tracking-widest">
-                    {locale === "en" ? "Select an Active Notebook" : "Selecione um Caderno Ativo"}
-                  </h3>
-                  <p className="text-stone-500 text-[11px] leading-relaxed">
-                    {locale === "en"
-                      ? "To record logs, investigate concepts, or view your research maps, you must first select or create an active notebook in the header dropdown or your profile."
-                      : "Para fazer registros, investigar conceitos ou visualizar seus mapas, você precisa selecionar ou criar um caderno ativo no menu superior ou em seu perfil."}
-                  </p>
-                  <button
-                    onClick={() => setActiveTab("home")}
-                    className="px-4 py-2 bg-stone-900 hover:bg-stone-850 text-white font-mono text-[10px] uppercase tracking-wider rounded font-bold transition-colors cursor-pointer"
-                  >
-                    {locale === "en" ? "Go to Home Page" : "Ir para a Página Inicial"}
-                  </button>
-                </div>
-              )}
-
-              {activeTab === "journal" && currentNotebook && (
-                <JournalModule
-                  entries={journal}
-                  concepts={concepts}
-                  onAddEntry={handleAddJournalEntry}
-                  onUpdateEntry={handleUpdateJournalEntry}
-                  onDeleteEntry={handleDeleteJournalEntry}
-                  initialIsCreating={autoOpenNewEntry}
+              {!user && activeTab !== "home" && activeTab !== "getting-started" ? (
+                <GuestLocker 
+                  tab={activeTab} 
+                  onSignIn={onSignIn || (() => {})} 
+                  isSigningIn={isSigningIn || false} 
+                  signInError={signInError} 
                 />
-              )}
+              ) : (
+                <>
+                  {activeTab !== "home" && activeTab !== "profile" && activeTab !== "admin" && activeTab !== "settings" && activeTab !== "getting-started" && activeTab !== "portfolio" && !currentNotebook && (
+                    <div className="h-[60vh] flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto space-y-4">
+                      <BookOpen className="w-12 h-12 text-stone-300 animate-pulse" />
+                      <h3 className="text-xs font-mono font-bold text-stone-900 uppercase tracking-widest">
+                        {locale === "en" ? "Select an Active Notebook" : "Selecione um Caderno Ativo"}
+                      </h3>
+                      <p className="text-stone-500 text-[11px] leading-relaxed">
+                        {locale === "en"
+                          ? "To record logs, investigate concepts, or view your research maps, you must first select or create an active notebook in the header dropdown or your profile."
+                          : "Para fazer registros, investigar conceitos ou visualizar seus mapas, você precisa selecionar ou criar um caderno ativo no menu superior ou em seu perfil."}
+                      </p>
+                      <button
+                        onClick={() => setActiveTab("home")}
+                        className="px-4 py-2 bg-stone-900 hover:bg-stone-850 text-white font-mono text-[10px] uppercase tracking-wider rounded font-bold transition-colors cursor-pointer"
+                      >
+                        {locale === "en" ? "Go to Home Page" : "Ir para a Página Inicial"}
+                      </button>
+                    </div>
+                  )}
 
-              {activeTab === "lab" && currentNotebook && (
-                <LabModule
-                  concepts={concepts}
-                  onAddConcept={handleAddConcept}
-                  onUpdateConcept={handleUpdateConcept}
-                  onDeleteConcept={handleDeleteConcept}
-                  onExploreConcept={handleExploreConcept}
-                />
-              )}
+                  {activeTab === "journal" && currentNotebook && (
+                    <JournalModule
+                      entries={journal}
+                      concepts={concepts}
+                      onAddEntry={handleAddJournalEntry}
+                      onUpdateEntry={handleUpdateJournalEntry}
+                      onDeleteEntry={handleDeleteJournalEntry}
+                      initialIsCreating={autoOpenNewEntry}
+                    />
+                  )}
 
-              {activeTab === "map" && currentNotebook && (
-                <MapModule concepts={concepts} onUpdateConcept={handleUpdateConcept} />
-              )}
+                  {activeTab === "lab" && currentNotebook && (
+                    <LabModule
+                      concepts={concepts}
+                      onAddConcept={handleAddConcept}
+                      onUpdateConcept={handleUpdateConcept}
+                      onDeleteConcept={handleDeleteConcept}
+                      onExploreConcept={handleExploreConcept}
+                    />
+                  )}
 
-              {activeTab === "timeline" && currentNotebook && (
-                <TimelineModule entries={journal} concepts={concepts} />
-              )}
+                  {activeTab === "map" && currentNotebook && (
+                    <MapModule concepts={concepts} onUpdateConcept={handleUpdateConcept} />
+                  )}
 
-              {activeTab === "insights" && currentNotebook && (
-                <InsightsModule
-                  insights={insights}
-                  onGenerateInsights={handleGenerateInsights}
-                  onUpdateInsight={handleUpdateInsight}
-                  onDeleteInsight={handleDeleteInsight}
-                  hasData={journal.length > 0 || concepts.length > 0}
-                />
-              )}
+                  {activeTab === "timeline" && currentNotebook && (
+                    <TimelineModule entries={journal} concepts={concepts} />
+                  )}
 
-              {activeTab === "export" && currentNotebook && (
-                <ExportModule
-                  journal={journal}
-                  concepts={concepts}
-                  insights={insights}
-                  user={user}
-                />
-              )}
+                  {activeTab === "insights" && currentNotebook && (
+                    <InsightsModule
+                      insights={insights}
+                      onGenerateInsights={handleGenerateInsights}
+                      onUpdateInsight={handleUpdateInsight}
+                      onDeleteInsight={handleDeleteInsight}
+                      hasData={journal.length > 0 || concepts.length > 0}
+                    />
+                  )}
 
-              {activeTab === "portfolio" && currentNotebook && (
-                <PortfolioBuilder
-                  journal={journal}
-                  concepts={concepts}
-                  user={user}
-                  onBack={() => setActiveTab("home")}
-                />
-              )}
+                  {activeTab === "export" && currentNotebook && (
+                    <ExportModule
+                      journal={journal}
+                      concepts={concepts}
+                      insights={insights}
+                      user={user}
+                    />
+                  )}
 
-              {activeTab === "admin" && (
-                <AdminDashboard
-                  onBack={() => setActiveTab("home")}
-                  currentUser={user}
-                  adminRole={adminRole}
-                />
-              )}
+                  {activeTab === "portfolio" && currentNotebook && (
+                    <PortfolioBuilder
+                      journal={journal}
+                      concepts={concepts}
+                      user={user}
+                      onBack={() => setActiveTab("home")}
+                    />
+                  )}
 
-              {activeTab === "profile" && (
-                <ProfilePage
-                  currentUser={user}
-                  onBack={() => setActiveTab("home")}
-                  lastModule={lastModule}
-                />
-              )}
+                  {activeTab === "admin" && (
+                    <AdminDashboard
+                      onBack={() => setActiveTab("home")}
+                      currentUser={user}
+                      adminRole={adminRole}
+                    />
+                  )}
 
-              {activeTab === "settings" && (
-                <SettingsPage
-                  onBack={() => setActiveTab("home")}
-                  onDeleteDemoContent={handleDeleteDemoContent}
-                />
-              )}
+                  {activeTab === "profile" && (
+                    <ProfilePage
+                      currentUser={user}
+                      onBack={() => setActiveTab("home")}
+                      lastModule={lastModule}
+                    />
+                  )}
 
-              {activeTab === "getting-started" && (
-                <GettingStarted
-                  journal={journal}
-                  concepts={concepts}
-                  insights={insights}
-                  onBack={() => setActiveTab("home")}
-                  onNavigate={(tab) => setActiveTab(tab)}
-                />
+                  {activeTab === "settings" && (
+                    <SettingsPage
+                      onBack={() => setActiveTab("home")}
+                      onDeleteDemoContent={handleDeleteDemoContent}
+                    />
+                  )}
+
+                  {activeTab === "getting-started" && (
+                    <GettingStarted
+                      journal={journal}
+                      concepts={concepts}
+                      insights={insights}
+                      onBack={() => setActiveTab("home")}
+                      onNavigate={(tab) => setActiveTab(tab)}
+                    />
+                  )}
+                </>
               )}
             </div>
           )}
