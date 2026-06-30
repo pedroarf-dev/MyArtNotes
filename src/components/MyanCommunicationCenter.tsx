@@ -39,6 +39,7 @@ export default function MyanCommunicationCenter({
   const [emailConsent, setEmailConsent] = useState(false);
   const [category, setCategory] = useState<"bug" | "suggestion" | "question" | "idea" | "other">("suggestion");
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ show: boolean; msg: string } | null>(null);
   
   // Feedback history states
   const [feedbacks, setFeedbacks] = useState<BetaFeedback[]>([]);
@@ -136,7 +137,7 @@ export default function MyanCommunicationCenter({
 
       const title = message.trim().substring(0, 45) + (message.trim().length > 45 ? "..." : "");
 
-      await addFeedback({
+      const newFeedback = await addFeedback({
         userId: currentUser.uid,
         userEmail: currentUser.email || "anonymous@myartnotes.com",
         category,
@@ -160,6 +161,20 @@ export default function MyanCommunicationCenter({
       setCategory("suggestion");
       setStep("success");
       setFeedbackError(null);
+
+      // Optimistically append the newly created feedback to the user's conversation history immediately
+      setFeedbacks((prev) => [newFeedback, ...prev]);
+
+      // Show localized success toast immediately
+      setToast({
+        show: true,
+        msg: isEn 
+          ? "Thank you! Feedback sent successfully." 
+          : "Obrigado! Feedback enviado com sucesso."
+      });
+      setTimeout(() => {
+        setToast(null);
+      }, 4000);
 
       // Auto load history
       await loadHistory();
@@ -554,6 +569,30 @@ export default function MyanCommunicationCenter({
                 </p>
               </motion.div>
             )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Localized Success Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.9 }}
+            className="fixed bottom-24 right-6 z-50 bg-[#1C1917] border border-[#2E2A24] text-[#FAF8F3] px-4 py-3 rounded shadow-xl flex items-center gap-3 max-w-sm"
+          >
+            <div className="w-5 h-5 rounded-full bg-emerald-950 border border-emerald-800 flex items-center justify-center text-emerald-400 flex-shrink-0">
+              <Check className="w-3.5 h-3.5 animate-pulse" />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-serif text-xs font-bold tracking-wide">
+                {isEn ? "Success" : "Sucesso"}
+              </span>
+              <span className="text-[10px] text-stone-300 font-sans mt-0.5">
+                {toast.msg}
+              </span>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

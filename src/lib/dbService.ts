@@ -966,13 +966,25 @@ export const addFeedback = async (
 ): Promise<BetaFeedback> => {
   const path = "feedback";
   const now = new Date().toISOString();
-  const docData = {
+  
+  // Construct document data
+  const rawData = {
     ...feedback,
     status: "new" as const,
     adminNotes: "",
     createdAt: now,
     updatedAt: now
   };
+
+  // Filter out any undefined values to be extremely safe against Firestore errors
+  const docData: any = {};
+  Object.keys(rawData).forEach((key) => {
+    const val = (rawData as any)[key];
+    if (val !== undefined) {
+      docData[key] = val;
+    }
+  });
+
   try {
     const docRef = await addDoc(collection(db, path), docData);
     return {
