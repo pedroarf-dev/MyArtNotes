@@ -25,7 +25,7 @@ import {
   Layout
 } from "lucide-react";
 import { useTranslation } from "../lib/i18n";
-import HelpModal from "./HelpModal";
+import InfoPopover, { PopoverModuleId } from "./InfoPopover";
 import { useResearch } from "../context/ResearchContext";
 
 
@@ -126,7 +126,8 @@ export default function Header({
       read: false
     }
   ]);
-  const [helpModule, setHelpModule] = useState<"journal" | "lab" | "concept" | "map" | "timeline" | "insights" | "admin" | null>(null);
+  const [helpModule, setHelpModule] = useState<PopoverModuleId | null>(null);
+  const [helpTrigger, setHelpTrigger] = useState<HTMLButtonElement | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   const lt = locale === "en" ? localTranslations.en : localTranslations.pt;
@@ -379,18 +380,18 @@ export default function Header({
                   </span>
                 )}
               </button>
-              {tab.id !== "home" && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setHelpModule(tab.id === "map" ? "map" : tab.id as any);
-                  }}
-                  className="p-0.5 rounded-full text-stone-300 hover:text-stone-700 hover:bg-stone-100/50 transition-colors cursor-pointer"
-                  title={locale === "en" ? "Learn more" : "Saiba mais"}
-                >
-                  <Info className="w-2.5 h-2.5 stroke-[1.5]" />
-                </button>
-              )}
+              <button
+                id={`help-btn-${tab.id}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setHelpTrigger(e.currentTarget);
+                  setHelpModule(tab.id === "map" ? "map" : tab.id as any);
+                }}
+                className="p-0.5 rounded-full text-stone-300 hover:text-stone-700 hover:bg-stone-100/50 transition-colors cursor-pointer"
+                title={locale === "en" ? "Learn more" : "Saiba mais"}
+              >
+                <Info className="w-2.5 h-2.5 stroke-[1.5]" />
+              </button>
             </div>
           );
         })}
@@ -641,10 +642,11 @@ export default function Header({
         )}
       </div>
 
-      <HelpModal 
+      <InfoPopover 
         isOpen={!!helpModule} 
         onClose={() => setHelpModule(null)} 
         moduleId={helpModule || "journal"} 
+        triggerEl={helpTrigger}
       />
 
       {/* Create Notebook Editorial Modal */}

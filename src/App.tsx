@@ -105,8 +105,8 @@ function AppContent() {
           : "A janela de login foi fechada antes da conclusão do processo de autenticação. Por favor, tente novamente.";
       } else if (err.code === "auth/unauthorized-domain") {
         errMsg = locale === "en"
-          ? "This domain is not authorized for Firebase Authentication. If you are on Vercel, please add your domain to the Authorized Domains list in the Firebase Console."
-          : "Este domínio não está autorizado para Autenticação do Firebase. Se você está no Vercel, adicione o seu domínio à lista de Domínios Autorizados no Console do Firebase.";
+          ? "Unauthorized Domain Error: To fix this, go to your Firebase Console (console.firebase.google.com) > Authentication > Settings > Authorized Domains, and add 'my-art-notes.vercel.app' to the list. Google Sign-In will work immediately after!"
+          : "Erro de Domínio Não Autorizado: Para corrigir, acesse o Console do Firebase (console.firebase.google.com) > Authentication > Configurações > Domínios Autorizados, e adicione 'my-art-notes.vercel.app' à lista. O login com o Google funcionará imediatamente após isso!";
       }
       setSignInError(errMsg);
     } finally {
