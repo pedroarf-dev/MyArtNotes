@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { ActiveTab } from "../types";
 import { 
   BookOpen, 
@@ -167,6 +168,21 @@ export default function Header({
       document.removeEventListener("mousedown", handleOutsideClick);
     };
   }, [isDropdownOpen, isNotifOpen]);
+
+  // Handle Escape key for Create Notebook Modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsCreateModalOpen(false);
+      }
+    };
+    if (isCreateModalOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isCreateModalOpen]);
 
   const tabs: { id: ActiveTab; label: string; icon: React.ReactNode; count?: number }[] = [
     { id: "home", label: t.tabHome, icon: <Home className="w-4 h-4" /> },
@@ -650,9 +666,16 @@ export default function Header({
       />
 
       {/* Create Notebook Editorial Modal */}
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-xs">
-          <div className="max-w-md w-full bg-white border border-[#E6E2D5] rounded-lg p-6 shadow-xl space-y-5 animate-fadeIn font-sans text-stone-850">
+      {isCreateModalOpen && createPortal(
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-stone-900/45 backdrop-blur-xs overflow-y-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsCreateModalOpen(false);
+            }
+          }}
+        >
+          <div className="max-w-md w-full bg-[#FCFAF7] border border-[#DDD9CE] rounded-lg p-6 shadow-2xl space-y-5 animate-fadeIn font-sans text-stone-850 max-h-[calc(100vh-3rem)] overflow-y-auto scrollbar-thin">
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <h3 className="text-sm font-mono font-bold text-stone-950 uppercase tracking-widest">
                 {locale === "en" ? "New Research Notebook" : "Novo Caderno de Pesquisa"}
@@ -779,7 +802,8 @@ export default function Header({
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </header>
   );

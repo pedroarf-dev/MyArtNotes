@@ -860,7 +860,7 @@ function WorkspaceContainer({
         isSigningIn={isSigningIn}
       />
 
-      {showOnboarding ? (
+      {showOnboarding && activeTab === "journal" ? (
         <OnboardingScreen
           onCreateFirstEntry={handleOnboardingCreateFirstEntry}
           onLoadExample={handleCreateDemoNotebook}
@@ -925,7 +925,7 @@ function WorkspaceContainer({
                 />
               ) : (
                 <>
-                  {activeTab !== "home" && activeTab !== "profile" && activeTab !== "admin" && activeTab !== "settings" && activeTab !== "getting-started" && activeTab !== "portfolio" && !currentNotebook && (
+                  {activeTab !== "home" && activeTab !== "profile" && activeTab !== "admin" && activeTab !== "settings" && activeTab !== "getting-started" && !currentNotebook && (
                     <div className="h-[60vh] flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto space-y-4">
                       <BookOpen className="w-12 h-12 text-stone-300 animate-pulse" />
                       <h3 className="text-xs font-mono font-bold text-stone-900 uppercase tracking-widest">
