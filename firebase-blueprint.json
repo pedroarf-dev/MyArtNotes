@@ -124,6 +124,29 @@
         "isPublic": "boolean (optional)"
       }
     },
+    "productions": {
+      "description": "Store individual completed or in-progress artworks associated with a research notebook",
+      "fields": {
+        "id": "string",
+        "userId": "string",
+        "researchNotebookId": "string",
+        "title": "string",
+        "imageUrl": "string",
+        "technique": "string",
+        "dimensions": "string",
+        "surface": "string",
+        "creationDate": "string",
+        "status": "string ('In progress' | 'Finished' | 'Exhibited' | 'Sold' | 'Private')",
+        "notes": "string (optional)",
+        "createdAt": "timestamp (ISO)",
+        "updatedAt": "timestamp (ISO)",
+        "additionalImages": "array of strings (optional)",
+        "videoUrl": "string (optional)",
+        "audioUrl": "string (optional)",
+        "processGallery": "array of strings (optional)",
+        "qrCodeUrl": "string (optional)"
+      }
+    },
     "feedback": {
       "description": "Store user-submitted beta feedback, ideas, suggestions and bugs",
       "fields": {

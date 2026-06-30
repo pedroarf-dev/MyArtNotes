@@ -196,6 +196,13 @@ export default function AdminDashboard({ onBack, currentUser, adminRole }: Admin
   const [filterSearch, setFilterSearch] = useState<string>("");
   const [selectedFeedback, setSelectedFeedback] = useState<BetaFeedback | null>(null);
   const [adminNotesText, setAdminNotesText] = useState("");
+  const [explanationText, setExplanationText] = useState("");
+  const [releaseVersionText, setReleaseVersionText] = useState("");
+  const [tempStatus, setTempStatus] = useState<"new" | "under_review" | "in_development" | "fixed" | "wont_implement">("new");
+  const [linkedIssueUrlText, setLinkedIssueUrlText] = useState("");
+  const [isLinkedIssueClosedText, setIsLinkedIssueClosedText] = useState(false);
+  const [suggestedStatus, setSuggestedStatus] = useState<"new" | "under_review" | "in_development" | "fixed" | "wont_implement" | null>(null);
+  const [suggestionReason, setSuggestionReason] = useState("");
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
   const [notesSaveSuccess, setNotesSaveSuccess] = useState(false);
 
@@ -230,6 +237,74 @@ export default function AdminDashboard({ onBack, currentUser, adminRole }: Admin
     loadAdmins();
   }, [adminRole]);
 
+  const getTimelineSteps = (fb: BetaFeedback) => {
+    const steps = [];
+    const createdDate = new Date(fb.createdAt);
+    const updatedDate = fb.updatedAt ? new Date(fb.updatedAt) : createdDate;
+    
+    // 1. Submitted
+    steps.push({
+      key: "new",
+      label: locale === "en" ? "Submitted" : "Enviado",
+      time: createdDate,
+      actor: fb.userEmail,
+      completed: true,
+    });
+
+    // 2. Under Review
+    if (fb.status !== "new") {
+      let reviewTime = updatedDate;
+      if (fb.status === "in_development" || fb.status === "fixed" || fb.status === "wont_implement") {
+        const diff = updatedDate.getTime() - createdDate.getTime();
+        reviewTime = new Date(createdDate.getTime() + Math.max(diff * 0.25, 60000));
+      }
+      steps.push({
+        key: "under_review",
+        label: locale === "en" ? "Under Review" : "Em Análise",
+        time: reviewTime,
+        actor: fb.updatedBy || "admin@platform.com",
+        completed: true,
+      });
+    }
+
+    // 3. In Development
+    if (fb.status === "in_development" || fb.status === "fixed") {
+      let devTime = updatedDate;
+      if (fb.status === "fixed") {
+        const diff = updatedDate.getTime() - createdDate.getTime();
+        devTime = new Date(createdDate.getTime() + Math.max(diff * 0.6, 120000));
+      }
+      steps.push({
+        key: "in_development",
+        label: locale === "en" ? "In Development" : "Em Desenvolvimento",
+        time: devTime,
+        actor: fb.updatedBy || "admin@platform.com",
+        completed: true,
+      });
+    }
+
+    // 4. Fixed / Won't Implement
+    if (fb.status === "fixed") {
+      steps.push({
+        key: "fixed",
+        label: locale === "en" ? "Fixed" : "Resolvido",
+        time: updatedDate,
+        actor: fb.updatedBy || "admin@platform.com",
+        completed: true,
+      });
+    } else if (fb.status === "wont_implement") {
+      steps.push({
+        key: "wont_implement",
+        label: locale === "en" ? "Won't Implement" : "Não Será Implementado",
+        time: updatedDate,
+        actor: fb.updatedBy || "admin@platform.com",
+        completed: true,
+      });
+    }
+
+    return steps;
+  };
+
   // --- Feedback Dashboard Helpers ---
   const loadFeedbacks = async () => {
     setFeedbacksLoading(true);
@@ -249,15 +324,64 @@ export default function AdminDashboard({ onBack, currentUser, adminRole }: Admin
     }
   }, [activeTab]);
 
-  const handleUpdateFeedback = async (feedbackId: string, status: "new" | "review" | "resolved" | "archived", notes: string) => {
+  useEffect(() => {
+    if (!selectedFeedback) return;
+    if (isLinkedIssueClosedText && tempStatus !== "fixed") {
+      setSuggestedStatus("fixed");
+      setSuggestionReason(locale === "en" 
+        ? "Developer closed the linked issue." 
+        : "O desenvolvedor fechou a issue associada.");
+    } else if (!isLinkedIssueClosedText && tempStatus === "new") {
+      setSuggestedStatus("under_review");
+      setSuggestionReason(locale === "en" 
+        ? "Report has been opened by an administrator." 
+        : "O relatório foi aberto por um administrador.");
+    } else {
+      if (tempStatus === suggestedStatus) {
+        setSuggestedStatus(null);
+        setSuggestionReason("");
+      }
+    }
+  }, [isLinkedIssueClosedText, tempStatus, selectedFeedback]);
+
+  const handleUpdateFeedback = async (
+    feedbackId: string,
+    status: "new" | "under_review" | "in_development" | "fixed" | "wont_implement",
+    notes: string,
+    explanation?: string,
+    version?: string,
+    linkedIssueUrl?: string,
+    isLinkedIssueClosed?: boolean
+  ) => {
     setStatusUpdatingId(feedbackId);
     setNotesSaveSuccess(false);
+    const adminEmail = currentUser?.email || "admin@platform.com";
     try {
-      await updateFeedbackStatusAndNotes(feedbackId, status, notes);
+      await updateFeedbackStatusAndNotes(feedbackId, status, notes, explanation, version, linkedIssueUrl, isLinkedIssueClosed, adminEmail);
       // Update local state
-      setFeedbacks(prev => prev.map(f => f.id === feedbackId ? { ...f, status, adminNotes: notes, updatedAt: new Date().toISOString() } : f));
+      setFeedbacks(prev => prev.map(f => f.id === feedbackId ? {
+        ...f,
+        status,
+        adminNotes: notes,
+        explanation,
+        version,
+        linkedIssueUrl,
+        isLinkedIssueClosed,
+        updatedBy: adminEmail,
+        updatedAt: new Date().toISOString()
+      } : f));
       if (selectedFeedback && selectedFeedback.id === feedbackId) {
-        setSelectedFeedback(prev => prev ? { ...prev, status, adminNotes: notes, adminNotesText: notes, updatedAt: new Date().toISOString() } : null);
+        setSelectedFeedback(prev => prev ? {
+          ...prev,
+          status,
+          adminNotes: notes,
+          explanation,
+          version,
+          linkedIssueUrl,
+          isLinkedIssueClosed,
+          updatedBy: adminEmail,
+          updatedAt: new Date().toISOString()
+        } : null);
       }
       setNotesSaveSuccess(true);
       setTimeout(() => setNotesSaveSuccess(false), 3000);
@@ -992,8 +1116,8 @@ export default function AdminDashboard({ onBack, currentUser, adminRole }: Admin
           </div>
 
           {/* Filter and search bar */}
-          <div className="bg-white border border-[#E6E2D5] rounded p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          <div className="bg-white border border-[#E6E2D5] rounded p-4 flex flex-col xl:flex-row gap-4 items-center justify-between">
+            <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
               <div className="flex items-center gap-1.5 text-xs text-stone-550 font-mono">
                 <Filter className="w-3.5 h-3.5" />
                 <span>Filters:</span>
@@ -1012,17 +1136,80 @@ export default function AdminDashboard({ onBack, currentUser, adminRole }: Admin
                 <option value="other">Other</option>
               </select>
 
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="bg-white border border-[#DDD9CE] rounded px-2.5 py-1 text-xs font-sans text-stone-800 focus:outline-none cursor-pointer"
-              >
-                <option value="all">All Statuses</option>
-                <option value="new">New</option>
-                <option value="review">Under Review</option>
-                <option value="resolved">Resolved</option>
-                <option value="archived">Archived</option>
-              </select>
+              {/* Horizontal Status Quick Filters */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setFilterStatus("all")}
+                  className={`px-2.5 py-1 text-[10px] font-mono uppercase font-bold rounded border transition-all cursor-pointer ${
+                    filterStatus === "all"
+                      ? "bg-stone-900 border-stone-900 text-white"
+                      : "bg-white border-[#DDD9CE] text-stone-600 hover:bg-[#FAF8F3]"
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterStatus("new")}
+                  className={`px-2.5 py-1 text-[10px] font-mono uppercase font-bold rounded border transition-all cursor-pointer flex items-center gap-1 ${
+                    filterStatus === "new"
+                      ? "bg-red-700 border-red-700 text-white"
+                      : "bg-red-50/50 border-red-200 text-red-750 hover:bg-red-50"
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${filterStatus === "new" ? "bg-white" : "bg-red-500"}`}></span>
+                  New
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterStatus("under_review")}
+                  className={`px-2.5 py-1 text-[10px] font-mono uppercase font-bold rounded border transition-all cursor-pointer flex items-center gap-1 ${
+                    filterStatus === "under_review"
+                      ? "bg-amber-600 border-amber-600 text-white"
+                      : "bg-amber-50/50 border-amber-200 text-amber-700 hover:bg-amber-100"
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${filterStatus === "under_review" ? "bg-white" : "bg-amber-500"}`}></span>
+                  Under Review
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterStatus("in_development")}
+                  className={`px-2.5 py-1 text-[10px] font-mono uppercase font-bold rounded border transition-all cursor-pointer flex items-center gap-1 ${
+                    filterStatus === "in_development"
+                      ? "bg-orange-600 border-orange-600 text-white"
+                      : "bg-orange-50/50 border-orange-200 text-orange-700 hover:bg-orange-100"
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${filterStatus === "in_development" ? "bg-white" : "bg-orange-500"}`}></span>
+                  In Dev
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterStatus("fixed")}
+                  className={`px-2.5 py-1 text-[10px] font-mono uppercase font-bold rounded border transition-all cursor-pointer flex items-center gap-1 ${
+                    filterStatus === "fixed"
+                      ? "bg-emerald-700 border-emerald-700 text-white"
+                      : "bg-emerald-50/50 border-emerald-200 text-emerald-750 hover:bg-emerald-100"
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${filterStatus === "fixed" ? "bg-white" : "bg-emerald-600"}`}></span>
+                  Fixed
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterStatus("wont_implement")}
+                  className={`px-2.5 py-1 text-[10px] font-mono uppercase font-bold rounded border transition-all cursor-pointer flex items-center gap-1 ${
+                    filterStatus === "wont_implement"
+                      ? "bg-stone-600 border-stone-600 text-white"
+                      : "bg-stone-100 border-stone-300 text-stone-600 hover:bg-stone-200"
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${filterStatus === "wont_implement" ? "bg-white" : "bg-stone-400"}`}></span>
+                  Won't Implement
+                </button>
+              </div>
             </div>
 
             <div className="w-full md:w-72">
@@ -1058,17 +1245,41 @@ export default function AdminDashboard({ onBack, currentUser, adminRole }: Admin
                   {filteredFeedbacks.map((f) => {
                     const isSelected = selectedFeedback?.id === f.id;
                     const statusColors =
-                      f.status === "new" ? "bg-amber-50 border-amber-200 text-amber-800" :
-                      f.status === "review" ? "bg-blue-50 border-blue-200 text-blue-800" :
-                      f.status === "resolved" ? "bg-emerald-50 border-emerald-200 text-emerald-800" :
-                      "bg-stone-100 border-stone-200 text-stone-600";
+                      f.status === "new" ? "bg-red-50 border-red-200 text-red-700 font-bold" :
+                      f.status === "under_review" ? "bg-amber-50 border-amber-200 text-amber-700 font-bold" :
+                      f.status === "in_development" ? "bg-orange-50 border-orange-200 text-orange-700 font-bold" :
+                      f.status === "fixed" ? "bg-emerald-50 border-emerald-200 text-emerald-700 font-bold" :
+                      "bg-stone-100 border-stone-250 text-stone-600";
+
+                    const statusLabel =
+                      f.status === "new" ? (locale === "en" ? "New" : "Novo") :
+                      f.status === "under_review" ? (locale === "en" ? "Under Review" : "Em Análise") :
+                      f.status === "in_development" ? (locale === "en" ? "In Development" : "Em Desenvolvimento") :
+                      f.status === "fixed" ? (locale === "en" ? "Fixed" : "Resolvido") :
+                      (locale === "en" ? "Won't Implement" : "Não Será Implementado");
 
                     return (
                       <button
                         key={f.id}
                         onClick={() => {
                           setSelectedFeedback(f);
+                          setTempStatus(f.status);
                           setAdminNotesText(f.adminNotes || "");
+                          setExplanationText(f.explanation || "");
+                          setReleaseVersionText(f.version || "");
+                          setLinkedIssueUrlText(f.linkedIssueUrl || "");
+                          setIsLinkedIssueClosedText(f.isLinkedIssueClosed || false);
+                          
+                          // Auto Suggestion on Open
+                          if (f.status === "new") {
+                            setSuggestedStatus("under_review");
+                            setSuggestionReason(locale === "en" 
+                              ? "Report has been opened by an administrator." 
+                              : "O relatório foi aberto por um administrador.");
+                          } else {
+                            setSuggestedStatus(null);
+                            setSuggestionReason("");
+                          }
                         }}
                         className={`w-full text-left p-4 hover:bg-[#FAF8F3]/50 transition-colors cursor-pointer flex flex-col gap-2 relative ${
                           isSelected ? "bg-[#FAF8F3] border-r-2 border-stone-900" : ""
@@ -1079,7 +1290,7 @@ export default function AdminDashboard({ onBack, currentUser, adminRole }: Admin
                             {f.category}
                           </span>
                           <span className={`text-[9px] font-bold font-mono uppercase border px-1.5 py-0.5 rounded ${statusColors}`}>
-                            {f.status}
+                            {statusLabel}
                           </span>
                         </div>
 
@@ -1171,59 +1382,252 @@ export default function AdminDashboard({ onBack, currentUser, adminRole }: Admin
                     </div>
                   </div>
 
+                  {/* Feedback Timeline */}
+                  <div className="bg-[#FAF8F3] border border-[#E6E2D5] rounded p-4 space-y-3 font-sans">
+                    <div className="flex justify-between items-center">
+                      <span className="block text-[9px] font-mono text-stone-400 uppercase tracking-widest font-bold">Feedback Timeline</span>
+                      <span className="text-[8px] font-mono text-stone-400 uppercase tracking-widest">Transitions History</span>
+                    </div>
+
+                    <div className="relative pl-4 border-l border-stone-200 space-y-4 text-[11px] font-sans mt-2">
+                      {getTimelineSteps(selectedFeedback).map((step, idx) => (
+                        <div key={idx} className="relative">
+                          {/* Dot */}
+                          <div className={`absolute -left-[20.5px] top-1 w-2.5 h-2.5 rounded-full border border-white ${
+                            step.key === "new" ? "bg-red-500" :
+                            step.key === "under_review" ? "bg-amber-400" :
+                            step.key === "in_development" ? "bg-orange-500" :
+                            step.key === "fixed" ? "bg-emerald-500" :
+                            "bg-stone-400"
+                          }`} />
+                          
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-1">
+                            <span className="font-semibold text-stone-800">{step.label}</span>
+                            <div className="flex items-center gap-1.5 text-[10px] font-mono text-stone-400">
+                              <span>{step.time.toLocaleDateString()} {step.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              <span className="text-stone-300">|</span>
+                              <span className="text-stone-500 max-w-[150px] truncate" title={step.actor}>{step.actor}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Status Update & Internal Notes Area */}
                   <div className="border-t border-[#E6E2D5] pt-4 space-y-4 font-sans">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    
+                    {/* Status Suggestion Banner */}
+                    {suggestedStatus && (
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded text-xs flex items-center justify-between gap-3 animate-fadeIn">
+                        <div className="flex items-center gap-2 text-amber-955">
+                          <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
+                          <div>
+                            <span className="font-bold block">Suggestion: {
+                              suggestedStatus === "under_review" ? "Under Review" :
+                              suggestedStatus === "fixed" ? "Fixed" : suggestedStatus
+                            }</span>
+                            <span className="text-[10px] text-amber-600 font-mono">{suggestionReason}</span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTempStatus(suggestedStatus);
+                            setSuggestedStatus(null);
+                            setSuggestionReason("");
+                            handleUpdateFeedback(
+                              selectedFeedback.id,
+                              suggestedStatus,
+                              adminNotesText,
+                              explanationText || (locale === "en" ? "This report has a linked issue marked as completed." : "Este relatório tem um problema vinculado marcado como concluído."),
+                              releaseVersionText,
+                              linkedIssueUrlText,
+                              isLinkedIssueClosedText
+                            );
+                          }}
+                          className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-[10px] font-mono uppercase font-bold cursor-pointer transition-colors"
+                        >
+                          Apply
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Feedback Status Dropdown */}
                       <div className="space-y-1">
                         <label className="block text-[9px] font-mono text-stone-400 uppercase tracking-widest font-bold">Feedback Status</label>
                         <select
-                          value={selectedFeedback.status}
-                          onChange={(e) => handleUpdateFeedback(selectedFeedback.id, e.target.value as any, adminNotesText)}
+                          value={tempStatus}
+                          onChange={(e) => {
+                            const val = e.target.value as any;
+                            setTempStatus(val);
+                            
+                            // Let's decide if there is any default text needed for wont_implement
+                            let currentExp = explanationText;
+                            if (val === "wont_implement" && !currentExp.trim()) {
+                              currentExp = locale === "en" ? "This feature is outside the current roadmap." : "Esta funcionalidade está fora do roadmap atual.";
+                              setExplanationText(currentExp);
+                            }
+                            
+                            handleUpdateFeedback(
+                              selectedFeedback.id,
+                              val,
+                              adminNotesText,
+                              currentExp,
+                              releaseVersionText,
+                              linkedIssueUrlText,
+                              isLinkedIssueClosedText
+                            );
+                          }}
                           disabled={statusUpdatingId === selectedFeedback.id}
-                          className="w-full bg-white border border-[#DDD9CE] rounded px-3 py-1.5 text-xs text-stone-800 focus:outline-none cursor-pointer disabled:opacity-50"
+                          className="w-full bg-white border border-[#DDD9CE] rounded px-3 py-1.5 text-xs text-stone-800 focus:outline-none cursor-pointer disabled:opacity-50 font-bold"
                         >
-                          <option value="new">New</option>
-                          <option value="review">Under Review</option>
-                          <option value="resolved">Resolved</option>
-                          <option value="archived">Archived</option>
+                          <option value="new">🔴 New (Just arrived)</option>
+                          <option value="under_review">🟡 Under Review (Investigating)</option>
+                          <option value="in_development">🟠 In Development (Implementing fix)</option>
+                          <option value="fixed">🟢 Fixed (Issue solved)</option>
+                          <option value="wont_implement">⚪ Won't Implement (Declined)</option>
                         </select>
                       </div>
+
+                      {/* Version Field (visible when fixed selected) */}
+                      {tempStatus === "fixed" && (
+                        <div className="space-y-1 animate-fadeIn">
+                          <label className="block text-[9px] font-mono text-stone-400 uppercase tracking-widest font-bold">Release Version (Optional)</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Beta 0.8.3, RC1.4, v1.0.0"
+                            value={releaseVersionText}
+                            onChange={(e) => setReleaseVersionText(e.target.value)}
+                            className="w-full bg-white border border-[#DDD9CE] rounded px-3 py-1.5 text-xs text-stone-800 focus:outline-none"
+                          />
+                          <span className="text-[9px] text-stone-400 font-sans block italic">
+                            "Available in the next platform update."
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Explanation Field (visible when wont_implement selected) */}
+                      {tempStatus === "wont_implement" && (
+                        <div className="space-y-1 md:col-span-2 animate-fadeIn">
+                          <label className="block text-[9px] font-mono text-stone-400 uppercase tracking-widest font-bold">
+                            Explanation for Declinure <span className="text-red-500">*Required</span>
+                          </label>
+                          <select
+                            value={explanationText}
+                            onChange={(e) => setExplanationText(e.target.value)}
+                            className="w-full bg-white border border-[#DDD9CE] rounded px-3 py-1.5 text-xs text-stone-800 focus:outline-none cursor-pointer mb-2"
+                          >
+                            <option value="">-- Select template or write custom detail --</option>
+                            <option value="outside product scope">Outside product scope</option>
+                            <option value="duplicated request">Duplicated request</option>
+                            <option value="technically unfeasible">Technically unfeasible</option>
+                            <option value="not aligned with the product vision">Not aligned with the product vision</option>
+                          </select>
+                          <textarea
+                            rows={2}
+                            placeholder="Write the explanation detail visible to the artist..."
+                            value={explanationText}
+                            onChange={(e) => setExplanationText(e.target.value)}
+                            className="w-full bg-white border border-[#DDD9CE] rounded px-3 py-2 text-xs text-stone-850 focus:outline-none font-sans"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Linked GitHub Issue (Developer Integration & Simulation) */}
+                    <div className="p-3.5 bg-[#FAF8F3] border border-[#E6E2D5] rounded space-y-3 font-sans">
+                      <div className="flex items-center justify-between">
+                        <span className="block text-[9px] font-mono text-stone-500 uppercase tracking-widest font-bold">
+                          Issue Tracker Integration (Developer Simulation)
+                        </span>
+                        <span className="text-[8px] font-mono px-1.5 py-0.5 bg-stone-100 text-stone-400 uppercase rounded">
+                          Github Link
+                        </span>
+                      </div>
                       
-                      <div className="md:col-span-2 pt-4 md:pt-0 flex items-center justify-end">
-                        {notesSaveSuccess && (
-                          <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded flex items-center gap-1.5 animate-fadeIn">
-                            <Check className="w-3.5 h-3.5" />
-                            <span>Changes saved successfully</span>
-                          </div>
-                        )}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
+                        <div className="md:col-span-2">
+                          <input
+                            type="text"
+                            placeholder="Linked issue URL or ID (e.g. #421)"
+                            value={linkedIssueUrlText}
+                            onChange={(e) => setLinkedIssueUrlText(e.target.value)}
+                            className="w-full bg-white border border-[#DDD9CE] rounded px-3 py-1.5 text-xs text-stone-800 focus:outline-none"
+                          />
+                        </div>
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={isLinkedIssueClosedText}
+                            onChange={(e) => {
+                              setIsLinkedIssueClosedText(e.target.checked);
+                            }}
+                            className="rounded border-[#E6E2D5] text-stone-900 focus:ring-0 w-3.5 h-3.5 bg-white cursor-pointer"
+                          />
+                          <span className="text-xs text-stone-600 font-mono">
+                            Linked Issue Closed
+                          </span>
+                        </label>
                       </div>
                     </div>
 
+                    {/* Internal Notes */}
                     <div className="space-y-1.5">
-                      <label className="block text-[9px] font-mono text-stone-400 uppercase tracking-widest font-bold">Internal Notes</label>
+                      <div className="flex justify-between items-center">
+                        <label className="block text-[9px] font-mono text-stone-400 uppercase tracking-widest font-bold">Internal Notes</label>
+                        <span className="text-[8px] font-mono text-red-500 uppercase font-bold">Visible only to Administrators</span>
+                      </div>
                       <textarea
                         rows={3}
-                        placeholder="Write team response, notes on fix progress, or diagnostic records here..."
+                        placeholder="Useful for: reproduction steps, technical observations, linked commits, release notes..."
                         value={adminNotesText}
                         onChange={(e) => setAdminNotesText(e.target.value)}
                         className="w-full bg-white border border-[#DDD9CE] rounded px-3 py-2 text-xs text-stone-850 focus:outline-none focus:border-stone-500 font-sans"
                       />
-                      <div className="flex justify-end pt-1">
+                      
+                      <div className="flex justify-between items-center pt-2">
+                        <div className="flex-1">
+                          {notesSaveSuccess && (
+                            <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded flex items-center gap-1.5 animate-fadeIn max-w-fit">
+                              <Check className="w-3.5 h-3.5" />
+                              <span>All changes saved successfully!</span>
+                            </div>
+                          )}
+                        </div>
+
                         <button
                           type="button"
-                          onClick={() => handleUpdateFeedback(selectedFeedback.id, selectedFeedback.status, adminNotesText)}
-                          disabled={statusUpdatingId === selectedFeedback.id}
-                          className="px-4 py-1.5 bg-stone-900 hover:bg-stone-850 disabled:opacity-50 text-white font-mono text-[10px] uppercase font-bold rounded cursor-pointer transition-colors flex items-center gap-1.5"
+                          onClick={() => {
+                            if (tempStatus === "wont_implement" && !explanationText.trim()) {
+                              alert(locale === "en" 
+                                ? "Please provide an explanation for Won't Implement." 
+                                : "Por favor, forneça uma justificativa para Não Será Implementado.");
+                              return;
+                            }
+                            handleUpdateFeedback(
+                              selectedFeedback.id,
+                              tempStatus,
+                              adminNotesText,
+                              explanationText,
+                              releaseVersionText,
+                              linkedIssueUrlText,
+                              isLinkedIssueClosedText
+                            );
+                          }}
+                          disabled={statusUpdatingId === selectedFeedback.id || (tempStatus === "wont_implement" && !explanationText.trim())}
+                          className="px-5 py-2 bg-stone-900 hover:bg-stone-850 disabled:opacity-50 text-white font-mono text-[10px] uppercase font-bold rounded cursor-pointer transition-colors flex items-center gap-1.5"
                         >
                           {statusUpdatingId === selectedFeedback.id ? (
                             <>
-                              <RefreshCw className="w-3 h-3 animate-spin" />
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                               <span>Saving...</span>
                             </>
                           ) : (
                             <>
-                              <Check className="w-3 h-3" />
-                              <span>Save Notes</span>
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Save All Changes</span>
                             </>
                           )}
                         </button>

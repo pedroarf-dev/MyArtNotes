@@ -13,6 +13,7 @@ export type PopoverModuleId =
   | "timeline"
   | "insights"
   | "export"
+  | "productions"
   | "portfolio"
   | "admin";
 
@@ -79,6 +80,12 @@ const helpContent = {
       why: "Um portfólio forte é mais do que uma coleção de trabalhos concluídos. Ele revela o pensamento, a experimentação e a pesquisa por trás de sua prática artística.",
       next: "Selecione registros de diário, conceitos e materiais de pesquisa de seu caderno e comece a curadoria de seu portfólio."
     },
+    productions: {
+      title: "Catálogo de Obras",
+      what: "O Catálogo de Obras (Produções) é onde você registra os trabalhos finalizados ou em andamento criados a partir do seu caderno de pesquisa.",
+      why: "A obra de arte finalizada não está separada da pesquisa artística; ela é uma das manifestações físicas e poéticas dessa investigação contínua.",
+      next: "Registre os trabalhos concluídos ou em andamento, detalhando o título, imagem, técnica, suporte, dimensões e notas críticas."
+    },
     admin: {
       title: "Área Administrativa",
       what: "Ambiente reservado para gestão técnica e controle de acesso da plataforma MyArtNotes.",
@@ -140,6 +147,12 @@ const helpContent = {
       what: "Portfolio Builder helps transform your artistic research into a curated portfolio. Instead of starting from scratch, it allows your portfolio to emerge naturally from the creative process already documented inside MyArtNotes.",
       why: "A strong portfolio is more than a collection of finished works. It reveals the thinking, experimentation and research behind your artistic practice.",
       next: "Select journal entries, concepts and research materials from your notebook and begin curating your portfolio."
+    },
+    productions: {
+      title: "Artwork Catalog",
+      what: "The Artwork Catalog (Productions) is where you register the finished or in-progress works created as a manifestation of your research.",
+      why: "The finished artwork is not separate from the artistic research; it is one of the physical and poetic manifestations of this ongoing investigation.",
+      next: "Register the finished or evolving works, detailing the title, image, technique, support, dimensions, and critical notes."
     },
     admin: {
       title: "Admin Area",

@@ -18,6 +18,7 @@ export const en: TranslationType = {
   tabTimeline: "Follow",
   tabInsights: "Reflect",
   tabExport: "Export",
+  tabProductions: "Productions",
 
   // Settings & Language Selector
   settingsTitle: "Notebook Settings",
@@ -204,6 +205,70 @@ export const en: TranslationType = {
   homeSwitchBtn: "Switch Notebook",
   allActiveNotebooks: "Active Notebooks",
 
+  // Productions Module
+  productionsTitle: "ARTWORK CATALOG",
+  productionsSubtitle: "Artworks produced as a manifestation of the research notebook.",
+  searchProductions: "Search artworks...",
+  newProductionBtn: "Register Artwork",
+  noProductionsYet: "No artworks registered in this notebook yet.",
+  artworkCardImageAlt: "Artwork image",
+  statusInProgress: "In progress",
+  statusFinished: "Finished",
+  statusExhibited: "Exhibited",
+  statusSold: "Sold",
+  statusPrivate: "Private Collection",
+  techniqueLabel: "Technique",
+  dimensionsLabel: "Dimensions",
+  surfaceLabel: "Surface / Support",
+  statusLabelHeader: "Status",
+  creationDateLabel: "Creation Date",
+  artistNotesLabel: "Artist Notes",
+  shortNoteLabel: "Short Note",
+  
+  // Create Modal
+  newProductionTitle: "Register New Artwork",
+  prodTitleLabel: "Artwork Title",
+  prodTitlePlaceholder: "E.g., Silent Horizon",
+  prodImageLabel: "Main Image (Upload)",
+  prodImagePlaceholder: "Click or drag to upload an image of the artwork...",
+  prodTechniqueLabel: "Technique",
+  prodTechniquePlaceholder: "Select or type technique",
+  prodDimensionsLabel: "Dimensions (width × height × depth)",
+  prodDimensionsPlaceholder: "E.g., 100 x 80 x 2 cm",
+  prodSurfaceLabel: "Surface / Support",
+  prodSurfacePlaceholder: "Select or type surface",
+  prodCreationDateLabel: "Creation Date",
+  prodStatusLabel: "Status",
+  prodNotesLabel: "Artist Notes (Optional)",
+  prodNotesPlaceholder: "Any poetic descriptions or notes on the production of this work...",
+  prodSubmitBtn: "Register Artwork",
+  
+  // Tech dropdown values
+  techOil: "Oil",
+  techAcrylic: "Acrylic",
+  techCharcoal: "Charcoal",
+  techGraphite: "Graphite",
+  techWatercolor: "Watercolor",
+  techDigital: "Digital Painting",
+  techMixed: "Mixed Media",
+  techOther: "Other",
+
+  // Surface dropdown values
+  surfCanvas: "Canvas",
+  surfPaper: "Paper",
+  surfWood: "Wood",
+  surfWall: "Wall",
+  surfFabric: "Fabric",
+  surfOther: "Other",
+
+  // Info Popover
+  infoProductionsWhatIs: "What is this?",
+  infoProductionsWhatIsDesc: "This is where your artistic research becomes artwork.",
+  infoProductionsWhyMatter: "Why does it matter?",
+  infoProductionsWhyMatterDesc: "The finished work is part of the research, not its end.",
+  infoProductionsNextStep: "Next step",
+  infoProductionsNextStepDesc: "Register the works created during this notebook.",
+
   // Feedback Channel
   feedbackSectionTitle: "Help & Feedback",
   feedbackIntro: "Your feedback helps improve MyArtNotes for every artist.",
@@ -224,8 +289,9 @@ export const en: TranslationType = {
   feedbackCatOther: "Other",
   feedbackStatusNew: "New",
   feedbackStatusReview: "Under Review",
-  feedbackStatusResolved: "Resolved",
-  feedbackStatusArchived: "Archived",
+  feedbackStatusInDevelopment: "In Development",
+  feedbackStatusFixed: "Fixed",
+  feedbackStatusWontImplement: "Won't Implement",
 
   // Editorial Manifesto
   manifestoCollapsedTitle: "A brief note before you begin",

@@ -23,7 +23,8 @@ import {
   Check,
   AlertCircle,
   Loader2,
-  Layout
+  Layout,
+  Palette
 } from "lucide-react";
 import { useTranslation } from "../lib/i18n";
 import InfoPopover, { PopoverModuleId } from "./InfoPopover";
@@ -35,6 +36,7 @@ interface HeaderProps {
   setActiveTab: (tab: ActiveTab) => void;
   journalCount: number;
   conceptCount: number;
+  productionsCount?: number;
   user: any;
   onSignOut: () => void;
   adminRole: "super_admin" | "admin" | null;
@@ -102,6 +104,7 @@ export default function Header({
   setActiveTab,
   journalCount,
   conceptCount,
+  productionsCount = 0,
   user,
   onSignOut,
   adminRole,
@@ -192,6 +195,7 @@ export default function Header({
     { id: "timeline", label: t.tabTimeline, icon: <Archive className="w-4 h-4" /> },
     { id: "insights", label: t.tabInsights, icon: <Sparkles className="w-4 h-4 text-stone-500" /> },
     { id: "export", label: t.tabExport, icon: <Download className="w-4 h-4 text-stone-500" /> },
+    { id: "productions", label: locale === "en" ? "Productions" : "Produções", icon: <Palette className="w-4 h-4 text-stone-500" />, count: productionsCount },
     { id: "portfolio", label: locale === "en" ? "Portfolio" : "Portfólio", icon: <Layout className="w-4 h-4 text-stone-500" /> }
   ];
 

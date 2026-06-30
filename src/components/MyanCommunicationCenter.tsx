@@ -12,7 +12,8 @@ import {
   Sparkles, 
   AlertCircle, 
   CheckCircle,
-  HelpCircle
+  HelpCircle,
+  AlertTriangle
 } from "lucide-react";
 import { User } from "firebase/auth";
 import { BetaFeedback } from "../types";
@@ -391,10 +392,11 @@ export default function MyanCommunicationCenter({
             };
 
             const statusMap: Record<string, { label: string, color: string }> = {
-              new: { label: isEn ? "Received" : "Recebido", color: "text-amber-700 bg-amber-50 border-amber-100" },
-              review: { label: isEn ? "Under Review" : "Em Análise", color: "text-blue-700 bg-blue-50 border-blue-100" },
-              resolved: { label: isEn ? "Resolved" : "Resolvido", color: "text-green-700 bg-green-50 border-green-100" },
-              archived: { label: isEn ? "Archived" : "Arquivado", color: "text-stone-500 bg-stone-50 border-stone-200" }
+              new: { label: isEn ? "New" : "Novo", color: "text-red-700 bg-red-50 border-red-100 font-bold" },
+              under_review: { label: isEn ? "Under Review" : "Em Análise", color: "text-amber-700 bg-amber-50 border-amber-100 font-bold" },
+              in_development: { label: isEn ? "In Development" : "Em Desenvolvimento", color: "text-orange-700 bg-orange-50 border-orange-100 font-bold" },
+              fixed: { label: isEn ? "Fixed" : "Resolvido", color: "text-green-700 bg-green-50 border-green-100 font-bold" },
+              wont_implement: { label: isEn ? "Won't Implement" : "Não Será Implementado", color: "text-stone-500 bg-stone-50 border-stone-200" }
             };
 
             const currentStatus = statusMap[item.status] || { label: item.status, color: "text-stone-500 bg-stone-50 border-stone-100" };
@@ -430,7 +432,7 @@ export default function MyanCommunicationCenter({
 
                 {/* Status Indicator */}
                 <div className="flex items-center justify-between pt-2 border-t border-stone-100">
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     <span className="text-[9px] text-stone-400 font-mono">Status:</span>
                     <span className={`px-2 py-0.5 text-[8px] font-mono uppercase tracking-wider rounded border ${currentStatus.color}`}>
                       {currentStatus.label}
@@ -438,7 +440,66 @@ export default function MyanCommunicationCenter({
                   </div>
                 </div>
 
-                {/* Admin Reply (Team) */}
+                {/* Fixed status special note */}
+                {item.status === "fixed" && (
+                  <div className="p-2.5 bg-emerald-50 border border-emerald-100 rounded text-[11px] text-emerald-850 space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>{isEn ? "Available in the next platform update." : "Disponível na próxima atualização da plataforma."}</span>
+                    </div>
+                    {item.version && (
+                      <div className="text-[10px] text-emerald-700 font-mono">
+                        {isEn ? "Target Release Version:" : "Versão de Lançamento Alvo:"} <span className="font-bold underline">{item.version}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Won't Implement explanation */}
+                {item.status === "wont_implement" && item.explanation && (
+                  <div className="p-2.5 bg-stone-50 border border-stone-200 rounded text-[11px] text-stone-700 space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold text-stone-850">
+                      <AlertTriangle className="w-3.5 h-3.5 text-stone-500" />
+                      <span>{isEn ? "Archived / Declined Explanation:" : "Justificativa do Arquivamento:"}</span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed italic text-stone-600 pl-5">
+                      "{item.explanation}"
+                    </p>
+                  </div>
+                )}
+
+                {/* Editorial Timeline */}
+                <div className="mt-2 pt-2 border-t border-stone-100 space-y-1.5">
+                  <span className="block text-[8px] font-mono font-bold text-stone-400 uppercase tracking-widest">
+                    {isEn ? "Editorial Timeline" : "Linha do Tempo Editorial"}
+                  </span>
+                  <div className="relative pl-3.5 border-l border-stone-200 space-y-2 text-[10px] font-mono text-stone-500">
+                    <div className="relative">
+                      <div className="absolute -left-[17.5px] top-1 w-2 h-2 rounded-full bg-stone-300"></div>
+                      <div className="flex justify-between">
+                        <span className="text-stone-700 font-sans font-medium">{isEn ? "Feedback Submitted" : "Feedback Enviado"}</span>
+                        <span>{new Date(item.createdAt).toLocaleDateString(isEn ? "en-US" : "pt-BR")}</span>
+                      </div>
+                    </div>
+
+                    {item.status !== "new" && (
+                      <div className="relative">
+                        <div className="absolute -left-[17.5px] top-1 w-2 h-2 rounded-full bg-amber-400"></div>
+                        <div className="flex justify-between">
+                          <span className="text-stone-700 font-sans font-medium">
+                            {item.status === "under_review" ? (isEn ? "Under Review" : "Em Análise") :
+                             item.status === "in_development" ? (isEn ? "In Development" : "Em Desenvolvimento") :
+                             item.status === "fixed" ? (isEn ? "Fixed & Verified" : "Resolvido e Verificado") :
+                             (isEn ? "Declined / Closed" : "Arquivado / Encerrado")}
+                          </span>
+                          <span>{new Date(item.updatedAt || item.createdAt).toLocaleDateString(isEn ? "en-US" : "pt-BR")}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Admin Reply (Team) - Hidden or shown as public team response */}
                 {item.adminNotes && (
                   <div className="mt-3 pt-3 border-t border-dashed border-stone-200 bg-[#FCFAF7] p-3 rounded space-y-1.5">
                     <div className="flex items-center justify-between">

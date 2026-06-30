@@ -14,10 +14,11 @@ import GettingStarted from "./components/GettingStarted";
 import HomeModule from "./components/HomeModule";
 import ExportModule from "./components/ExportModule";
 import PortfolioBuilder from "./components/PortfolioBuilder";
+import ProductionsModule from "./components/ProductionsModule";
 import PublicPortfolioViewer from "./components/PublicPortfolioViewer";
 import MyanCommunicationCenter from "./components/MyanCommunicationCenter";
 import GuestLocker from "./components/GuestLocker";
-import { JournalEntry, Concept, Insight, ActiveTab } from "./types";
+import { JournalEntry, Concept, Insight, ActiveTab, Production } from "./types";
 import { onAuthStateChanged, User, signOut, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "./lib/firebase";
 import {
@@ -38,7 +39,11 @@ import {
   logAnalyticsEvent,
   getAnalyticsDashboardData,
   getAdminUserRole,
-  getUserProfile
+  getUserProfile,
+  getProductions,
+  addProduction,
+  updateProduction,
+  deleteProduction
 } from "./lib/dbService";
 import { AlertCircle, Loader2, BookOpen } from "lucide-react";
 import { I18nProvider, useTranslation } from "./lib/i18n";
@@ -327,6 +332,7 @@ function WorkspaceContainer({
   const [journal, setJournal] = useState<JournalEntry[]>([]);
   const [concepts, setConcepts] = useState<Concept[]>([]);
   const [insights, setInsights] = useState<Insight[]>([]);
+  const [productions, setProductions] = useState<Production[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [lastModule, setLastModule] = useState<string | null>(null);
 
@@ -386,7 +392,7 @@ function WorkspaceContainer({
     try {
       console.log(`[DB] Syncing notebook workspace data streams for notebook: ${notebookId}...`);
       
-      const [journalData, conceptsData, insightsData] = await Promise.all([
+      const [journalData, conceptsData, insightsData, productionsData] = await Promise.all([
         getJournalEntries(userId, notebookId).catch((err) => {
           console.warn("[DB] Non-critical error fetching journals, falling back to empty:", err);
           return [] as JournalEntry[];
@@ -398,12 +404,17 @@ function WorkspaceContainer({
         getInsights(userId, notebookId).catch((err) => {
           console.warn("[DB] Non-critical error fetching insights, falling back to empty:", err);
           return [] as Insight[];
+        }),
+        getProductions(userId, notebookId).catch((err) => {
+          console.warn("[DB] Non-critical error fetching productions, falling back to empty:", err);
+          return [] as Production[];
         })
       ]);
 
       setJournal(journalData);
       setConcepts(conceptsData);
       setInsights(insightsData);
+      setProductions(productionsData);
       
       // Determine onboarding display - only show onboarding if the current notebook is totally empty
       // AND user has not completed first onboard bypass
@@ -430,6 +441,7 @@ function WorkspaceContainer({
       setJournal([]);
       setConcepts([]);
       setInsights([]);
+      setProductions([]);
     }
   }, [user, currentNotebook, isLoadingNotebooks]);
 
@@ -644,6 +656,48 @@ function WorkspaceContainer({
     return newInsight;
   };
 
+  // Productions Mutations
+  const handleAddProduction = async (
+    production: Omit<Production, "id" | "createdAt" | "updatedAt">
+  ) => {
+    if (!user || !currentNotebook) return;
+    try {
+      const added = await addProduction(user.uid, currentNotebook.id, production);
+      setProductions((prev) => [added, ...prev]);
+      logAnalyticsEvent(user.uid, "production_created", { title: production.title, notebookId: currentNotebook.id });
+    } catch (err) {
+      console.error("Failed to add production:", err);
+      throw err;
+    }
+  };
+
+  const handleUpdateProduction = async (
+    productionId: string,
+    updatedFields: Partial<Omit<Production, "id" | "userId" | "researchNotebookId" | "createdAt">>
+  ) => {
+    if (!user) return;
+    try {
+      await updateProduction(productionId, updatedFields);
+      setProductions((prev) =>
+        prev.map((p) => (p.id === productionId ? { ...p, ...updatedFields, updatedAt: new Date().toISOString() } : p))
+      );
+    } catch (err) {
+      console.error("Failed to update production:", err);
+      throw err;
+    }
+  };
+
+  const handleDeleteProduction = async (productionId: string) => {
+    if (!user) return;
+    try {
+      await deleteProduction(productionId);
+      setProductions((prev) => prev.filter((p) => p.id !== productionId));
+    } catch (err) {
+      console.error("Failed to delete production:", err);
+      throw err;
+    }
+  };
+
   // Onboarding actions (Scoped by Active Notebook)
   const handleOnboardingCreateFirstEntry = () => {
     if (user && currentNotebook) {
@@ -853,6 +907,7 @@ function WorkspaceContainer({
         setActiveTab={setActiveTab}
         journalCount={journal.length}
         conceptCount={concepts.length}
+        productionsCount={productions.length}
         user={user}
         onSignOut={handleSignOut}
         adminRole={adminRole}
@@ -990,6 +1045,16 @@ function WorkspaceContainer({
                       concepts={concepts}
                       insights={insights}
                       user={user}
+                    />
+                  )}
+
+                  {activeTab === "productions" && currentNotebook && (
+                    <ProductionsModule
+                      productions={productions}
+                      concepts={concepts}
+                      onAddProduction={handleAddProduction}
+                      onUpdateProduction={handleUpdateProduction}
+                      onDeleteProduction={handleDeleteProduction}
                     />
                   )}
 

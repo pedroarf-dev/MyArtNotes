@@ -68,6 +68,12 @@ service cloud.firestore {
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
     }
 
+    // productions collection
+    match /productions/{productionId} {
+      allow read, update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
     // analytics_events collection
     match /analytics_events/{eventId} {
       // Admins can read, create, update, delete any events

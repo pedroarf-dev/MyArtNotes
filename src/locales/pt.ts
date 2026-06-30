@@ -16,6 +16,7 @@ export const pt = {
   tabTimeline: "Acompanhar",
   tabInsights: "Refletir",
   tabExport: "Exportar",
+  tabProductions: "Produções",
 
   // Settings & Language Selector
   settingsTitle: "Configurações do Caderno",
@@ -202,6 +203,70 @@ export const pt = {
   homeSwitchBtn: "Trocar de Caderno",
   allActiveNotebooks: "Cadernos Ativos",
 
+  // Productions Module
+  productionsTitle: "CATÁLOGO DE OBRAS",
+  productionsSubtitle: "Obras artísticas produzidas como uma manifestação do caderno de pesquisa.",
+  searchProductions: "Buscar obras...",
+  newProductionBtn: "Registrar Obra",
+  noProductionsYet: "Nenhuma obra registrada neste caderno ainda.",
+  artworkCardImageAlt: "Imagem da obra",
+  statusInProgress: "Em andamento",
+  statusFinished: "Finalizada",
+  statusExhibited: "Exposta",
+  statusSold: "Vendida",
+  statusPrivate: "Coleção Privada",
+  techniqueLabel: "Técnica",
+  dimensionsLabel: "Dimensões",
+  surfaceLabel: "Superfície / Suporte",
+  statusLabelHeader: "Status",
+  creationDateLabel: "Data de Criação",
+  artistNotesLabel: "Notas do Artista",
+  shortNoteLabel: "Nota Curta",
+  
+  // Create Modal
+  newProductionTitle: "Registrar Nova Obra",
+  prodTitleLabel: "Título da Obra",
+  prodTitlePlaceholder: "Ex: Horizonte Silencioso",
+  prodImageLabel: "Imagem Principal (Upload)",
+  prodImagePlaceholder: "Clique ou arraste para fazer o upload da imagem da obra...",
+  prodTechniqueLabel: "Técnica",
+  prodTechniquePlaceholder: "Selecione ou digite a técnica",
+  prodDimensionsLabel: "Dimensões (largura × altura × profundidade)",
+  prodDimensionsPlaceholder: "Ex: 100 x 80 x 2 cm",
+  prodSurfaceLabel: "Superfície / Suporte",
+  prodSurfacePlaceholder: "Selecione ou digite a superfície",
+  prodCreationDateLabel: "Data de Criação",
+  prodStatusLabel: "Status",
+  prodNotesLabel: "Notas do Artista (Opcional)",
+  prodNotesPlaceholder: "Quaisquer descrições poéticas ou notas sobre a produção desta obra...",
+  prodSubmitBtn: "Registrar Obra",
+  
+  // Tech dropdown values
+  techOil: "Óleo",
+  techAcrylic: "Acrílica",
+  techCharcoal: "Carvão",
+  techGraphite: "Grafite",
+  techWatercolor: "Aquarela",
+  techDigital: "Pintura Digital",
+  techMixed: "Técnica Mista",
+  techOther: "Outra",
+
+  // Surface dropdown values
+  surfCanvas: "Tela",
+  surfPaper: "Papel",
+  surfWood: "Madeira",
+  surfWall: "Parede",
+  surfFabric: "Tecido",
+  surfOther: "Outro",
+
+  // Info Popover
+  infoProductionsWhatIs: "O que é isso?",
+  infoProductionsWhatIsDesc: "Este é o espaço onde sua pesquisa artística se materializa em obra de arte.",
+  infoProductionsWhyMatter: "Por que isso importa?",
+  infoProductionsWhyMatterDesc: "A obra finalizada é parte integrante da pesquisa, não o seu fim.",
+  infoProductionsNextStep: "Próximo passo",
+  infoProductionsNextStepDesc: "Registre os trabalhos criados ao longo das investigações deste caderno.",
+
   // Feedback Channel
   feedbackSectionTitle: "Ajuda & Feedback",
   feedbackIntro: "Seu feedback ajuda a melhorar o MyArtNotes para todos os artistas.",
@@ -222,8 +287,9 @@ export const pt = {
   feedbackCatOther: "Outro",
   feedbackStatusNew: "Novo",
   feedbackStatusReview: "Em Análise",
-  feedbackStatusResolved: "Resolvido",
-  feedbackStatusArchived: "Arquivado",
+  feedbackStatusInDevelopment: "Em Desenvolvimento",
+  feedbackStatusFixed: "Resolvido",
+  feedbackStatusWontImplement: "Não Será Implementado",
 
   // Editorial Manifesto
   manifestoCollapsedTitle: "Uma breve nota antes de começar",

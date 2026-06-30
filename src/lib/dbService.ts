@@ -14,7 +14,7 @@ import {
   getDocFromServer
 } from "firebase/firestore";
 import { db, auth } from "./firebase";
-import { JournalEntry, Concept, Insight, UserProfile, ExportItem, ResearchNotebook, Portfolio, BetaFeedback } from "../types";
+import { JournalEntry, Concept, Insight, UserProfile, ExportItem, ResearchNotebook, Portfolio, BetaFeedback, Production } from "../types";
 
 export enum OperationType {
   CREATE = 'create',
@@ -392,7 +392,7 @@ export const deleteInsight = async (insightId: string): Promise<void> => {
 // Analytics Events & Logging
 export const logAnalyticsEvent = async (
   userId: string,
-  eventType: "user_signed_up" | "first_journal_entry" | "first_concept_created" | "first_ai_exploration" | "first_insight_viewed" | "privacy_consent_updated" | "privacy_export_requested" | "account_deletion_requested",
+  eventType: "user_signed_up" | "first_journal_entry" | "first_concept_created" | "first_ai_exploration" | "first_insight_viewed" | "privacy_consent_updated" | "privacy_export_requested" | "account_deletion_requested" | "production_created",
   metadata?: any
 ): Promise<void> => {
   try {
@@ -931,6 +931,7 @@ export const deleteUserAccountAndData = async (userId: string): Promise<void> =>
     "insights",
     "exports",
     "portfolios",
+    "productions",
     "analytics_events",
     "research_notebooks"
   ];
@@ -1043,19 +1044,124 @@ export const getAllFeedbacks = async (): Promise<BetaFeedback[]> => {
 
 export const updateFeedbackStatusAndNotes = async (
   feedbackId: string,
-  status: "new" | "review" | "resolved" | "archived",
-  adminNotes: string
+  status: "new" | "under_review" | "in_development" | "fixed" | "wont_implement",
+  adminNotes: string,
+  explanation?: string,
+  version?: string,
+  linkedIssueUrl?: string,
+  isLinkedIssueClosed?: boolean,
+  updatedBy?: string
 ): Promise<void> => {
   const path = `feedback/${feedbackId}`;
   const ref = doc(db, "feedback", feedbackId);
   try {
-    await updateDoc(ref, {
+    const updateData: any = {
       status,
       adminNotes,
       updatedAt: new Date().toISOString()
-    });
+    };
+    if (explanation !== undefined) {
+      updateData.explanation = explanation;
+    }
+    if (version !== undefined) {
+      updateData.version = version;
+    }
+    if (linkedIssueUrl !== undefined) {
+      updateData.linkedIssueUrl = linkedIssueUrl;
+    }
+    if (isLinkedIssueClosed !== undefined) {
+      updateData.isLinkedIssueClosed = isLinkedIssueClosed;
+    }
+    if (updatedBy !== undefined) {
+      updateData.updatedBy = updatedBy;
+    }
+    await updateDoc(ref, updateData);
   } catch (err) {
     handleFirestoreError(err, OperationType.UPDATE, path);
+    throw err;
+  }
+};
+
+// --- Productions Service (Artwork Catalog) ---
+export const getProductions = async (userId: string, notebookId?: string): Promise<Production[]> => {
+  const path = "productions";
+  try {
+    let q;
+    if (notebookId) {
+      q = query(
+        collection(db, path),
+        where("userId", "==", userId),
+        where("researchNotebookId", "==", notebookId)
+      );
+    } else {
+      q = query(
+        collection(db, path),
+        where("userId", "==", userId)
+      );
+    }
+    const snap = await getDocs(q);
+    const results = snap.docs.map((d) => ({
+      id: d.id,
+      ...(d.data() as any)
+    })) as Production[];
+    return results.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  } catch (err) {
+    handleFirestoreError(err, OperationType.LIST, path);
+    return [];
+  }
+};
+
+export const addProduction = async (
+  userId: string,
+  notebookId: string,
+  production: Omit<Production, "id" | "createdAt" | "updatedAt">
+): Promise<Production> => {
+  const path = "productions";
+  const now = new Date().toISOString();
+  const docData = {
+    ...production,
+    userId,
+    researchNotebookId: notebookId,
+    createdAt: now,
+    updatedAt: now
+  };
+  try {
+    const docRef = await addDoc(collection(db, path), docData);
+    return {
+      id: docRef.id,
+      ...docData
+    };
+  } catch (err) {
+    handleFirestoreError(err, OperationType.CREATE, path);
+    throw err;
+  }
+};
+
+export const updateProduction = async (
+  productionId: string,
+  updatedFields: Partial<Omit<Production, "id" | "userId" | "researchNotebookId" | "createdAt">>
+): Promise<void> => {
+  const path = `productions/${productionId}`;
+  const ref = doc(db, "productions", productionId);
+  const docData = {
+    ...updatedFields,
+    updatedAt: new Date().toISOString()
+  };
+  try {
+    await updateDoc(ref, docData);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.UPDATE, path);
+    throw err;
+  }
+};
+
+export const deleteProduction = async (productionId: string): Promise<void> => {
+  const path = `productions/${productionId}`;
+  const ref = doc(db, "productions", productionId);
+  try {
+    await deleteDoc(ref);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
     throw err;
   }
 };

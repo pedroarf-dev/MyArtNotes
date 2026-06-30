@@ -111,7 +111,31 @@ export interface Portfolio {
   isPublic?: boolean;
 }
 
-export type ActiveTab = "home" | "journal" | "lab" | "map" | "timeline" | "insights" | "admin" | "profile" | "settings" | "getting-started" | "export" | "portfolio";
+export type ActiveTab = "home" | "journal" | "lab" | "map" | "timeline" | "insights" | "admin" | "profile" | "settings" | "getting-started" | "export" | "productions" | "portfolio";
+
+export interface Production {
+  id: string;
+  userId: string;
+  researchNotebookId: string;
+  title: string;
+  imageUrl: string; // thumbnail / main artwork image (Base64 or URL)
+  technique: "Oil" | "Acrylic" | "Charcoal" | "Graphite" | "Watercolor" | "Digital Painting" | "Mixed Media" | "Other" | string;
+  dimensions: string; // e.g. width x height x depth
+  surface: "Canvas" | "Paper" | "Wood" | "Wall" | "Fabric" | "Other" | string;
+  creationDate: string; // date string or ISO
+  status: "in_progress" | "finished" | "exhibited" | "sold" | "private_collection";
+  notes?: string; // artist notes
+  createdAt: string;
+  updatedAt: string;
+  associatedConcepts?: string[];
+
+  // Future Ready fields (not exposed in UI yet)
+  additionalImages?: string[];
+  videoUrl?: string;
+  audioUrl?: string;
+  processGallery?: string[];
+  qrCodeUrl?: string;
+}
 
 export interface UserProfile {
   uid: string;
@@ -168,8 +192,13 @@ export interface BetaFeedback {
   appVersion: string;
   notebookId: string | null;
   module: string | null;
-  status: "new" | "review" | "resolved" | "archived";
+  status: "new" | "under_review" | "in_development" | "fixed" | "wont_implement";
   adminNotes?: string;
+  explanation?: string;
+  version?: string;
+  linkedIssueUrl?: string;
+  isLinkedIssueClosed?: boolean;
+  updatedBy?: string;
   createdAt: string;
   updatedAt: string;
 }
